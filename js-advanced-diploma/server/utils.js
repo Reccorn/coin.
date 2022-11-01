@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 module.exports = {
 	readData,
 	writeData,
@@ -85,7 +86,7 @@ function pregenerateHistory(data, accounts, mine = false) {
 		const dayAsMs = 24 * 60 * 60 * 1000
 		const monthAsMs = 30 * dayAsMs
 		const yearAsMs = 12 * monthAsMs
-		let date = Date.now() - yearAsMs 
+		let date = Date.now() - yearAsMs
 
 		for (let month = 0; month <= months; month++) {
 			for (let transaction = 0; transaction <= transactionsPerMonth; transaction++) {

@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-undef */
 const express = require('express')
 const cors = require('cors')
 const bodyParser = require('body-parser')
@@ -125,7 +127,7 @@ app.post('/transfer-funds', authCheck, (req, res) => {
 		res.end(response(null, 'Invalid account from'))
 		return
 	}
-	
+
 	if (!toAccount) {
 		if (Math.random() < 0.25) {
 			toAccount = makeAccount(false, toAccount)
@@ -162,7 +164,7 @@ app.post('/transfer-funds', authCheck, (req, res) => {
 		to: toAccount.account,
 		amount,
 	})
-	
+
 	writeData(data)
 
 	res.end(response(fromAccount))
@@ -261,7 +263,7 @@ app.get('/banks', (req, res) => {
 		{ lat: 59.910094, lon: 30.329551 },
 		{ lat: 59.850012, lon: 30.457657 },
 	])
-	
+
 	res.end(response(POINTS_LIST))
 })
 

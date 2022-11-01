@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-undef
 module.exports = [
 	"2222400070000005",
 	"5555341244441115",
