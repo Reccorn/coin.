@@ -731,8 +731,7 @@ input {
 
       &.__active {
         &::after {
-          // content: url('src/client/assets/images/select_check.svg');
-          content: '';
+          content: url('./assets/images/select_check.svg');
           position: absolute;
           top: 10px;
           right: 16px;
@@ -771,6 +770,98 @@ input {
     .select__arrow {
       svg {
         transform: rotate(180deg);
+      }
+    }
+  }
+}
+
+.loader {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+
+  &__block {
+    position: absolute;
+    left: 50%;
+    // top: calc(50vh - 106px);
+    top: 50vh;
+    transform: translateX(-50%);
+    width: 64px;
+    height: 64px;
+
+    &::after {
+      content: url('./assets/images/loader.svg');
+      display: block;
+      width: 64px;
+      height: 64px;
+      animation: loading 10s linear infinite;
+    }
+
+    @keyframes loading {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(3600deg);
+      }
+    }
+  }
+}
+
+.error {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  z-index: 50;
+  min-width: 440px;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: $state-error;
+  border: 1px solid $state-error;
+  border-radius: 8px;
+  background-color: #ffb3b3;
+  transition: .3s;
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+
+  &.__active {
+    opacity: 1;
+    transform: none;
+    pointer-events: all;
+  }
+
+  &__close {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+
+    span {
+      position: absolute;
+      display: block;
+      width: 20px;
+      height: 3px;
+      transform-origin: center;
+      pointer-events: none;
+      background-color: $state-error;
+
+      &:nth-child(1) {
+        transform: rotate(45deg);
+      }
+
+      &:nth-child(2) {
+        transform: rotate(-45deg);
       }
     }
   }

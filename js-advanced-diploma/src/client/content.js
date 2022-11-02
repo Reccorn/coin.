@@ -7,11 +7,12 @@ const router = new Navigo('/');
 const Chart = require('chart.js');
 
 let token = localStorage.getItem('token');
+let notice;
 
 function createForm() {
   const formContent = el('.form__content');
   const form = el('form.form');
-  let filled = 0;
+  let filledInputs = [];
 
   function createFormItem(type) {
     const item = el('.form__item', type);
@@ -48,17 +49,15 @@ function createForm() {
         const btn = form.querySelector('.btn');
 
         if (input.value.length >= 6) {
-          filled++;
-        } else {
-          filled--;
-          filled < 0 ? filled = 0 : filled;
+          filledInputs.push(input);
         }
 
-        if (filled === 2) {
+        if (filledInputs.length === 2) {
           btn.classList.remove('disabled');
-        } else {
-          btn.classList.add('disabled');
         }
+        // else {
+        //   btn.classList.add('disabled');
+        // }
       });
   });
 
@@ -73,6 +72,8 @@ function createForm() {
     if (result.payload !== null) {
       localStorage.setItem('token', result.payload.token);
       window.location = '/accounts';
+    } else {
+      notice.show(result.error);
     }
   });
 
@@ -115,7 +116,9 @@ function createContentHead(address) {
     btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 4.00001L12 12M12 12L12 20M12 12L20 12M12 12L4 12" stroke="white" stroke-width="2"/></svg>Создать новый счёт';
 
     btn.addEventListener('click', () => {
-      createAccount();
+      if (btn.classList.contains('create__btn')) {
+        createAccount();
+      }
     })
   } else if (address === 'currency') {
     title.textContent = 'Валютный обмен';
@@ -221,76 +224,88 @@ async function createCurrencies() {
   let from ='';
   let to = '';
 
-  const allCurrencies = await bankApi.getKnownCurrencies();
-
-  for (let i = 0; i < allCurrencies.payload.length; i++) {
-    const option = el('option', allCurrencies.payload[i], {
-      value: allCurrencies.payload[i]
-    });
-
-    fromSelect.append(option);
-    toSelect.append(option.cloneNode(true));
-  }
-
-  const defaultOption = el('option', 'BTC', {
-    default: true,
-    hidden: true
-  });
-
-  fromSelect.prepend(defaultOption);
-  toSelect.prepend(defaultOption.cloneNode(true));
-
-  fromSelectBox.append(fromSelect);
-  toSelectBox.append(toSelect);
-
-  from = new Select(fromSelectBox);
-  to = new Select(toSelectBox);
-
-  amountLabel.append(amountInput);
-
-  swapForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    swapCurrencies(balance);
-  });
-
-  setChildren(swapLeft, [ fromLabel, fromSelectBox , toLabel, toSelectBox , amountLabel ]);
-  setChildren(swapForm, [ swapLeft, swapBtn ]);
-  setChildren(swap, [ swapTitle, swapForm ]);
-
   try {
-    await getCurrencyBalance(balanceList);
-    await getCurrencyChanges(courseList);
+    const allCurrencies = await bankApi.getKnownCurrencies();
+
+    if (allCurrencies.payload !== null) {
+      for (let i = 0; i < allCurrencies.payload.length; i++) {
+        const option = el('option', allCurrencies.payload[i], {
+          value: allCurrencies.payload[i]
+        });
+
+        fromSelect.append(option);
+        toSelect.append(option.cloneNode(true));
+      }
+
+      const defaultOption = el('option', 'BTC', {
+        default: true,
+        hidden: true
+      });
+
+      fromSelect.prepend(defaultOption);
+      toSelect.prepend(defaultOption.cloneNode(true));
+
+      fromSelectBox.append(fromSelect);
+      toSelectBox.append(toSelect);
+
+      from = new Select(fromSelectBox);
+      to = new Select(toSelectBox);
+
+      amountLabel.append(amountInput);
+
+      swapForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        swapCurrencies(balance);
+      });
+
+      setChildren(swapLeft, [ fromLabel, fromSelectBox , toLabel, toSelectBox , amountLabel ]);
+      setChildren(swapForm, [ swapLeft, swapBtn ]);
+      setChildren(swap, [ swapTitle, swapForm ]);
+
+      try {
+        await getCurrencyBalance(balanceList);
+        await getCurrencyChanges(courseList);
+      } catch(err) {
+        notice.show(err);
+      }
+
+      return parent;
+    } else {
+      throw allCurrencies.error;
+    }
   } catch(err) {
-    console.log(err);
+    notice.show(err);
   } finally {
     setChildren(balance, [ balanceTitle, balanceList ]);
     setChildren(course, [ courseTitle, courseList ]);
+
+    setChildren(left, [ balance , swap ]);
+    setChildren(right, course);
+    setChildren(parent, [ left, right ]);
   }
-
-  setChildren(left, [ balance , swap ]);
-  setChildren(right, course);
-  setChildren(parent, [ left, right ]);
-
-  return parent;
 }
 
 async function getCurrencyBalance(balanceList) {
   balanceList.innerHTML = '';
   const balanceData = await bankApi.getCurrencyAccounts(token);
 
-  for (let obj in balanceData.payload) {
-    let object = balanceData.payload[obj];
+  if (balanceData.payload !== null) {
+    for (let obj in balanceData.payload) {
+      let object = balanceData.payload[obj];
 
-    const item = el('li.currencies__list__item');
-    const code = el('.currencies__list__code', `${object.code}`);
-    const space = el('.currencies__list__space');
-    const amount = el('.currencies__list__amount', `${object.amount}`);
+      const item = el('li.currencies__list__item');
+      const code = el('.currencies__list__code', `${object.code}`);
+      const space = el('.currencies__list__space');
+      const amount = el('.currencies__list__amount', `${object.amount}`);
 
-    setChildren(item, [ code, space, amount ]);
-    balanceList.append(item);
+      setChildren(item, [ code, space, amount ]);
+      balanceList.append(item);
+    }
+
+    return balanceList;
+  } else {
+    throw balanceData.error;
   }
-
-  return balanceList;
 }
 
 async function getCurrencyChanges(courseList) {
@@ -338,6 +353,8 @@ async function swapCurrencies(balance) {
     const newList = el('ul.currencies__list');
     await getCurrencyBalance(newList);
     balance.replaceChild(newList, balanceList);
+  } else {
+    notice.show(result.error);
   }
 }
 
@@ -363,22 +380,27 @@ export function initMap() {
 
     const data = await bankApi.getBanks();
 
-    for (let obj in data.payload) {
-      let object = data.payload[obj];
+    if (data.payload !== null) {
+      for (let obj in data.payload) {
+        let object = data.payload[obj];
 
-      myMap.geoObjects
-        .add(new ymaps.Placemark([object.lat, object.lon], {
-            balloonContent: 'Coin.'
-        }, {
-            preset: 'islands#icon',
-            iconColor: '#0095b6'
-        }));
+        myMap.geoObjects
+          .add(new ymaps.Placemark([object.lat, object.lon], {
+              balloonContent: 'Coin.'
+          }, {
+              preset: 'islands#icon',
+              iconColor: '#0095b6'
+          }));
+      }
+    } else {
+      notice.show(data.error);
     }
   })
 }
 
 export default async function createContent(address) {
   const container = el('.container');
+  notice = new Notice();
 
   if (address === 'entry') {
     const form = createForm();
@@ -406,45 +428,48 @@ class Card {
     try {
       const data = await bankApi.getAccounts(token);
 
-      for (let i = 0; i < data.payload.length; i++) {
-        const card = el('li.accounts__item');
-        const number = el('span.accounts__number');
-        const balance = el('span.accounts__balance');
-        const cardBottom = el('.accounts__item__bottom');
-        const transaction = el('p.accounts__transaction');
-        const openBtn = el('button.btn.accounts__btn', 'Открыть');
+      if (data.payload !== null) {
+        for (let i = 0; i < data.payload.length; i++) {
+          const card = el('li.accounts__item');
+          const number = el('span.accounts__number');
+          const balance = el('span.accounts__balance');
+          const cardBottom = el('.accounts__item__bottom');
+          const transaction = el('p.accounts__transaction');
+          const openBtn = el('button.btn.accounts__btn', 'Открыть');
 
-        let item = data.payload[i];
+          let item = data.payload[i];
 
-        number.textContent = item.account;
-        balance.textContent = item.balance + ' ₽';
+          number.textContent = item.account;
+          balance.textContent = item.balance + ' ₽';
 
-        if (item.transactions.length) {
-          let transactionDate = new Date(Date.parse(item.transactions[0].date));
-          let day = transactionDate.getDate();
-          let month = transactionDate.toLocaleString('ru-ru', { month: 'long' });
-          if (month.endsWith('ь') || month.endsWith('й')){
-            month = month.replace(/.$/, 'я')
-          } else {
-            month += 'а';
+          if (item.transactions.length) {
+            let transactionDate = new Date(Date.parse(item.transactions[0].date));
+            let day = transactionDate.getDate();
+            let month = transactionDate.toLocaleString('ru-ru', { month: 'long' });
+            if (month.endsWith('ь') || month.endsWith('й')){
+              month = month.replace(/.$/, 'я')
+            } else {
+              month += 'а';
+            }
+            let year = transactionDate.getFullYear();
+
+            transaction.innerHTML = `<b>Последняя транзакция:</b><br> ${day} ${month} ${year}`;
           }
-          let year = transactionDate.getFullYear();
 
-          transaction.innerHTML = `<b>Последняя транзакция:</b><br> ${day} ${month} ${year}`;
+          openBtn.addEventListener('click', () => {
+            detailAccount(item.account);
+          });
+
+          setChildren(cardBottom, [ transaction, openBtn ]);
+          setChildren(card, [ number, balance, cardBottom ]);
+
+          list.append(card);
         }
-
-        openBtn.addEventListener('click', () => {
-          detailAccount(item.account);
-        });
-
-        setChildren(cardBottom, [ transaction, openBtn ]);
-        setChildren(card, [ number, balance, cardBottom ]);
-
-        list.append(card);
+      } else {
+        throw data.error;
       }
-
     } catch (err) {
-      console.log(err);
+      notice.show(err);
     } finally {
       setChildren(parent, list);
     }
@@ -463,15 +488,21 @@ class Account {
   }
 
   async build() {
-    this.data = await this.getData();
+    try {
+      this.data = await this.getData();
 
-    console.log(this.data)
+      if (this.data.payload !== null) {
+        this.headContent(this.data.payload.balance);
+        this.itemsContent();
+        this.storyContent(this.data.payload.transactions);
 
-    this.headContent(this.data.payload.balance);
-    this.itemsContent();
-    this.storyContent(this.data.payload.transactions);
-
-    setChildren(this.content, [ this.head, this.items, this.story ]);
+        setChildren(this.content, [ this.head, this.items, this.story ]);
+      } else {
+        throw this.data.error;
+      }
+    } catch(err) {
+      notice.show(err);
+    }
   }
 
   async getData() {
@@ -656,6 +687,48 @@ class Select {
     this.select.value = val;
     option.classList.add('__active');
     this.hide();
+  }
+}
+
+class Notice {
+  constructor() {
+    this.parent = document.querySelector('body');
+    this.block = el('.error');
+    this.timeout;
+
+    this.build();
+  }
+
+  build() {
+    this.name = el('span.error__name');
+    this.close = el('.error__close');
+
+    setChildren(this.close, [
+      el('span'),
+      el('span')
+    ]);
+
+    this.close.addEventListener('click', () => {
+      this.hide();
+    });
+
+    setChildren(this.block, [ this.name, this.close ]);
+    this.parent.append(this.block);
+  }
+
+  show(text) {
+    this.name.innerText = text;
+
+    this.block.classList.add('__active');
+
+    this.timeout = setTimeout(() => {
+      this.hide()
+    }, 10000);
+  }
+
+  hide() {
+    clearTimeout(this.timeout);
+    this.block.classList.remove('__active');
   }
 }
 

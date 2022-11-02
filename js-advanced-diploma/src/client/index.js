@@ -2,6 +2,7 @@
 import { el, setChildren } from 'redom';
 import Navigo from 'navigo';
 import createHeader from './header.js';
+import { Loader } from './loader.js';
 import createContent, { initMap } from './content.js';
 import './styles.scss';
 
@@ -10,18 +11,28 @@ const router = new Navigo('/');
 async function createApp(address) {
   setChildren(document.body, []);
 
+  let loader = new Loader();
+  loader.build();
+
   const main = el('main.main');
   let empty = false;
 
   if (address === 'entry') empty = true;
 
-  const content = await createContent(address);
-  setChildren(main, content);
+  let content;
 
-  setChildren(document.body, [
-    createHeader(empty),
-    main
-  ]);
+  try {
+    document.body.append(createHeader(empty));
+    content = await createContent(address);
+  } catch(err) {
+    console.log(err);
+  } finally {
+    setChildren(main, content);
+
+    loader.hide();
+
+    document.body.append(main);
+  }
 }
 
 router.on('/', () => {
