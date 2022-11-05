@@ -4,7 +4,7 @@ import Navigo from 'navigo';
 import { bankApi } from './api.js';
 
 const router = new Navigo('/');
-const Chart = require('chart.js');
+import Chart from 'chart.js/auto';
 
 let token = localStorage.getItem('token');
 let notice;
@@ -13,7 +13,6 @@ let sortedAccounts = [];
 function createForm() {
   const formContent = el('.form__content');
   const form = el('form.form');
-  let filledInputs = [];
 
   function createFormItem(type) {
     const item = el('.form__item', type);
@@ -46,20 +45,8 @@ function createForm() {
   ]);
 
   form.querySelectorAll('input').forEach((input) => {
-      input.addEventListener('blur', () => {
-        const btn = form.querySelector('.btn');
-
-        if (input.value.length >= 6) {
-          filledInputs.push(input);
-        }
-
-        if (filledInputs.length === 2) {
-          btn.classList.remove('disabled');
-        }
-        // else {
-        //   btn.classList.add('disabled');
-        // }
-      });
+      input.addEventListener('input', checkInputs);
+      input.addEventListener('blur', checkInputs);
   });
 
   form.addEventListener('submit', async (e) => {
@@ -74,11 +61,31 @@ function createForm() {
       localStorage.setItem('token', result.payload.token);
       window.location = '/accounts';
     } else {
-      notice.show(result.error);
+      notice.show(result.error, 'error');
     }
   });
 
   return formContent;
+}
+
+function checkInputs() {
+  const inputs = document.querySelectorAll('input');
+  let filledInputs = [];
+  const btn = document.querySelector('.btn');
+
+  inputs.forEach((input) => {
+    if (input.value.length >= 6) {
+      filledInputs.push(input);
+    }
+
+    if (filledInputs.length === 2) {
+      console.log('filled')
+      btn.classList.remove('disabled');
+    } else {
+      console.log('not filled')
+      btn.classList.add('disabled');
+    }
+  });
 }
 
 function createContentHead(address) {
@@ -150,6 +157,11 @@ async function createContentMain(address) {
   if (address === 'accounts') {
     const list = new Card(main, 'default');
     list.createElement();
+
+    if (localStorage.getItem('newAccount')) {
+      notice.show('Новый счёт создан успешно', 'success');
+      localStorage.removeItem('newAccount');
+    }
   } else if (address === 'atm') {
     const map = createMap();
     setChildren(main, map);
@@ -164,9 +176,14 @@ async function createContentMain(address) {
 async function createAccount() {
   try {
     const newAccount = await bankApi.createAccount(token);
-    console.log(newAccount);
+
+    if (newAccount.payload !== null) {
+      localStorage.setItem('newAccount', true);
+    } else {
+      throw newAccount.error;
+    }
   } catch(err) {
-    console.log(err);
+    notice.show(err, 'error');
   } finally {
     window.location.reload();
   }
@@ -264,6 +281,9 @@ async function createCurrencies() {
       from = new Select(fromSelectBox);
       to = new Select(toSelectBox);
 
+      fromSelect.value = 'BTC';
+      toSelect.value = 'BTC';
+
       amountLabel.append(amountInput);
 
       swapForm.addEventListener('submit', (e) => {
@@ -279,7 +299,7 @@ async function createCurrencies() {
         await getCurrencyBalance(balanceList);
         await getCurrencyChanges(courseList);
       } catch(err) {
-        notice.show(err);
+        notice.show(err, 'error');
       }
 
       return parent;
@@ -287,7 +307,7 @@ async function createCurrencies() {
       throw allCurrencies.error;
     }
   } catch(err) {
-    notice.show(err);
+    notice.show(err, 'error');
   } finally {
     setChildren(balance, [ balanceTitle, balanceList ]);
     setChildren(course, [ courseTitle, courseList ]);
@@ -366,8 +386,9 @@ async function swapCurrencies(balance) {
     const newList = el('ul.currencies__list');
     await getCurrencyBalance(newList);
     balance.replaceChild(newList, balanceList);
+    notice.show('Перевод прошёл успешно', 'success');
   } else {
-    notice.show(result.error);
+    notice.show(result.error, 'error');
   }
 }
 
@@ -406,7 +427,7 @@ export function initMap() {
           }));
       }
     } else {
-      notice.show(data.error);
+      notice.show(data.error, 'error');
     }
   })
 }
@@ -419,6 +440,7 @@ export default async function createContent(address) {
     const form = createForm();
 
     setChildren(container, form);
+    checkInputs();
   } else {
     const head = createContentHead(address);
     const main = await createContentMain(address);
@@ -427,6 +449,42 @@ export default async function createContent(address) {
   }
 
   return container;
+}
+
+function createChart(ctx, data) {
+  let monthes = [];
+  let balances = [];
+
+  for (let i = 0; i < data.length; i++) {
+    monthes.push(data[i].month);
+    balances.push(data[i].balance);
+  }
+
+  const newChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: monthes,
+        datasets: [{
+            label: 'Динамика баланса',
+            data: balances,
+            backgroundColor: [
+              'rgba(17, 106, 204, 1)'
+            ]
+        }],
+        font: {
+          size: 20,
+          weight: 700,
+          color: '#000'
+      }
+    },
+    options: {
+        scales: {
+            y: {
+                beginAtZero: false
+            }
+        }
+    }
+  });
 }
 
 class Card {
@@ -515,8 +573,7 @@ class Card {
         throw data.error;
       }
     } catch (err) {
-      notice.show(err);
-      console.log(err)
+      notice.show(err, 'error');
     } finally {
       setChildren(parent, list);
     }
@@ -542,7 +599,7 @@ class Account {
 
       if (this.data.payload !== null) {
         this.headContent(this.data.payload.balance);
-        this.itemsContent();
+        this.itemsContent(this.data.payload.balance, this.data.payload.transactions);
         this.storyContent(this.data.payload.transactions);
 
         setChildren(this.content, [ this.head, this.items, this.story ]);
@@ -550,7 +607,7 @@ class Account {
         throw this.data.error;
       }
     } catch(err) {
-      notice.show(err);
+      notice.show(err, 'error');
     }
   }
 
@@ -569,12 +626,12 @@ class Account {
     this.head.append(this.number, this.balance);
   }
 
-  itemsContent() {
+  itemsContent(balance, transactions) {
     this.transfer = el('.account__item');
-    this.chart = el('.account__item');
+    this.chart = el('.account__item.account__chart');
 
-    this.transferTitle = el('.account__title');
-    this.transferTitle.innerText = 'Новый перевод';
+    this.transferTitle = el('.account__title', 'Новый перевод');
+    this.chartTitle = el('.account__title', 'Динамика баланса');
 
     this.form = el('.account__form.form');
     this.formItemFirst = el('.account__form_item');
@@ -604,7 +661,19 @@ class Account {
     setChildren(this.form, [ this.formItemFirst, this.formItemSecond, this.submitBtn ]);
     setChildren(this.transfer, [ this.transferTitle, this.form ]);
 
-    this.items.append(this.transfer);
+    this.chartBody = el('.chart__body');
+    this.chartCanvas = el('canvas.#chart-06');
+
+    this.chartBody.append(this.chartCanvas);
+
+    setChildren(this.chart, [ this.chartTitle, this.chartBody ]);
+
+    let balances = getBalances(this.data.payload.account, balance, transactions, 6);
+    console.log(balances)
+
+    createChart(this.chartCanvas, balances);
+
+    this.items.append(this.transfer, this.chart);
   }
 
   storyContent(transactions) {
@@ -657,6 +726,45 @@ class Account {
       this.story.append(this.block);
     }
   }
+}
+
+function getBalances(account, balance, transactions, type) {
+  let balances = [];
+  let currentBalance = balance;
+  let currentMonth = '';
+
+  if (type === 6) {
+    if (transactions.length) {
+      for (let i = 0; i < transactions.length; i++) {
+        let date = new Date(Date.parse(transactions[i].date));
+        let month = date.toLocaleString('default', { month: 'short' });
+
+        if (month !== currentMonth) {
+          let object = {
+            balance: currentBalance,
+            month: month
+          };
+          balances.push(object);
+
+          if (balances.length === 6) {
+            return balances;
+          }
+
+          currentMonth = month;
+        }
+
+        if (transactions[i].to === account) {
+          currentBalance = currentBalance + transactions[i].amount;
+        } else {
+          currentBalance = currentBalance - transactions[i].amount;
+        }
+      }
+    } else {
+      balances = [ 0, 0, 0, 0, 0, 0 ];
+    }
+  }
+
+  // return balances;
 }
 
 class Select {
@@ -742,15 +850,15 @@ class Select {
 class Notice {
   constructor() {
     this.parent = document.querySelector('body');
-    this.block = el('.error');
+    this.block = el('.notice');
     this.timeout;
 
     this.build();
   }
 
   build() {
-    this.name = el('span.error__name');
-    this.close = el('.error__close');
+    this.name = el('span.notice__name');
+    this.close = el('.notice__close');
 
     setChildren(this.close, [
       el('span'),
@@ -765,7 +873,15 @@ class Notice {
     this.parent.append(this.block);
   }
 
-  show(text) {
+  show(text, type) {
+    this.block.classList.remove('__error', '__success');
+
+    if (type === 'error') {
+      this.block.classList.add('__error');
+    } else if (type === 'success') {
+      this.block.classList.add('__success');
+    }
+
     this.name.innerText = text;
 
     this.block.classList.add('__active');
