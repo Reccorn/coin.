@@ -1,10 +1,12 @@
 /* eslint-disable no-unused-vars, no-undef */
 import { el, setChildren } from 'redom';
 import Navigo from 'navigo';
+import Chart from 'chart.js/auto';
 import { bankApi } from './api.js';
+import { Autofill } from './autofill.js'
+import { Loader } from './loader.js';
 
 const router = new Navigo('/');
-import Chart from 'chart.js/auto';
 
 let token = localStorage.getItem('token');
 let notice;
@@ -199,12 +201,21 @@ function detailAccount(id) {
   backBtn.classList.add('back__btn');
   backBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M3.83 5L7.41 1.41L6 0L0 6L6 12L7.41 10.59L3.83 7L16 7V5L3.83 5Z" fill="white"/></svg>Вернуться назад';
 
-  backBtn.addEventListener('click', () => {
-    window.location.reload();
-  });
-
   const main = document.querySelector('.content__main');
-  main.querySelector('.accounts__list').remove();
+  const list = main.querySelector('.accounts__list');
+  if (list !== null) {
+    list.remove();
+  }
+
+  backBtn.addEventListener('click', () => {
+    if (backBtn.classList.contains('to__account')) {
+      backBtn.classList.remove('to__account');
+      main.innerHTML = '';
+      detailAccount(id);
+    } else {
+      window.location.reload();
+    }
+  });
 
   let detailContent = el('.account__content');
   let create = new Account(id, detailContent);
@@ -451,19 +462,20 @@ export default async function createContent(address) {
   return container;
 }
 
-function createChart(ctx, data) {
+function createChart(ctx, data, dynamic) {
   let monthes = [];
   let balances = [];
 
-  for (let i = 0; i < data.length; i++) {
-    monthes.push(data[i].month);
-    balances.push(data[i].balance);
-  }
+  if (dynamic) {
+    for (let i = 0; i < data.length; i++) {
+      monthes.push(data[i].month);
+      balances.push(data[i].balance);
+    }
 
-  const newChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: monthes,
+    const newChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: monthes,
         datasets: [{
             label: 'Динамика баланса',
             data: balances,
@@ -471,20 +483,47 @@ function createChart(ctx, data) {
               'rgba(17, 106, 204, 1)'
             ]
         }],
-        font: {
-          size: 20,
-          weight: 700,
-          color: '#000'
-      }
-    },
-    options: {
+
+      },
+      options: {
         scales: {
             y: {
-                beginAtZero: false
+                beginAtZero: false,
+                position: 'right',
+                ticks: {
+                  font: {
+                    size: 14,
+                    // weight: 700,
+                    color: 'black'
+                  }
+                }
+            },
+            x: {
+              ticks: {
+                font: {
+                  size: 16,
+                  // weight: 700,
+                  color: 'black'
+                }
+              }
             }
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          datasets: {
+            font: {
+              size: 20,
+              weight: 700,
+              color: '#000'
+            },
+            position: 'right'
+          }
         }
-    }
-  });
+      }
+    });
+  }
 }
 
 class Card {
@@ -592,6 +631,8 @@ class Account {
   }
 
   async build() {
+    let loader = new Loader();
+    loader.build();
     try {
       this.data = await this.getData();
 
@@ -599,8 +640,12 @@ class Account {
 
       if (this.data.payload !== null) {
         this.headContent(this.data.payload.balance);
-        this.itemsContent(this.data.payload.balance, this.data.payload.transactions);
-        this.storyContent(this.data.payload.transactions);
+        this.itemsContent(this.data.payload.balance, this.data.payload.transactions.reverse());
+        this.storyContent(this.data.payload.transactions, 10);
+
+        this.story.addEventListener('click', () => {
+          this.showMore();
+        });
 
         setChildren(this.content, [ this.head, this.items, this.story ]);
       } else {
@@ -608,6 +653,9 @@ class Account {
       }
     } catch(err) {
       notice.show(err, 'error');
+      console.log(err)
+    } finally {
+      loader.hide();
     }
   }
 
@@ -633,7 +681,7 @@ class Account {
     this.transferTitle = el('.account__title', 'Новый перевод');
     this.chartTitle = el('.account__title', 'Динамика баланса');
 
-    this.form = el('.account__form.form');
+    this.form = el('form.account__form.form');
     this.formItemFirst = el('.account__form_item');
     this.formItemSecond = el('.account__form_item');
     this.submitBtn = el('button.btn', {
@@ -642,21 +690,27 @@ class Account {
 
     this.submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 20H4C2.89543 20 2 19.1046 2 18V5.913C2.04661 4.84255 2.92853 3.99899 4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20ZM4 7.868V18H20V7.868L12 13.2L4 7.868ZM4.8 6L12 10.8L19.2 6H4.8Z" fill="white"/></svg>Отправить';
 
-    this.selectLabel = el('span', 'Номер счёта получателя');
-    this.selectBox = el('.select__box');
-    this.select = el('select');
-    let to = new Select(this.selectBox);
+    this.accountLabel = el('span', 'Номер счёта получателя');
+    this.autofillBox = el('.autofill__box');
+    let to = new Autofill(this.autofillBox);
 
     this.inputLabel = el('label', 'Сумма перевода');
     this.input = el('input', {
       type: 'number',
+      id: 'transfer-amount',
+      name: 'transfer-amount',
       placeholder: '0'
     });
 
     this.inputLabel.append(this.input);
 
-    this.formItemFirst.append(this.selectLabel, this.selectBox);
+    this.formItemFirst.append(this.accountLabel, this.autofillBox);
     this.formItemSecond.append(this.inputLabel);
+
+    this.form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      transferFunds(this.data.payload.account);
+    });
 
     setChildren(this.form, [ this.formItemFirst, this.formItemSecond, this.submitBtn ]);
     setChildren(this.transfer, [ this.transferTitle, this.form ]);
@@ -669,15 +723,28 @@ class Account {
     setChildren(this.chart, [ this.chartTitle, this.chartBody ]);
 
     let balances = getBalances(this.data.payload.account, balance, transactions, 6);
-    console.log(balances)
 
-    createChart(this.chartCanvas, balances);
+    createChart(this.chartCanvas, balances, true);
+
+    this.chart.addEventListener('click', () => {
+      this.showMore();
+    });
 
     this.items.append(this.transfer, this.chart);
   }
 
-  storyContent(transactions) {
+  storyContent(transactions, type) {
     if (transactions.length) {
+      let pagination = false;
+      if (transactions.length < type) {
+        type = transactions.length;
+      } else if (type === 'all') {
+        type = 25;
+        if (transactions.length > type) {
+          pagination = true;
+        }
+      }
+
       this.block = el('.account__item');
       this.storyTitle = el('.account__title', 'История переводов');
       this.storyHead = el('.account__story_head');
@@ -690,13 +757,17 @@ class Account {
         el('.account__story_item', 'Дата')
       ]);
 
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < type; i++) {
         let item = el('.account__story_list_item');
         let date = new Date(transactions[i].date);
         let month = date.getMonth() + 1;
+        let day = date.getDate()
 
         if (month < 10) {
           month = '0' + month;
+        }
+        if (day < 10) {
+          day = '0' + day;
         }
 
         let amountItem = el('.account__story_item');
@@ -716,15 +787,92 @@ class Account {
           el('.account__story_item', transactions[i].from),
           el('.account__story_item', transactions[i].to),
           amountItem,
-          el('.account__story_item', `${date.getDate()}.${month}.${date.getFullYear()}`)
+          el('.account__story_item', `${day}.${month}.${date.getFullYear()}`)
         ]);
 
         this.storyList.append(item);
       }
 
       setChildren(this.block, [ this.storyTitle, this.storyHead, this.storyList ]);
+
+      if (pagination) {
+        let pages = transactions.length/25;
+      }
+
       this.story.append(this.block);
     }
+  }
+
+  showMore() {
+    let loader = new Loader();
+    loader.build();
+    document.querySelector('h2').innerText = 'История баланса';
+    this.backBtn = document.querySelector('.back__btn');
+    this.backBtn.classList.add('to__account');
+
+    this.items.innerHTML = '';
+    this.story.innerHTML = '';
+
+    try {
+      this.moreCharts(this.data.payload.balance, this.data.payload.transactions);
+      this.storyContent(this.data.payload.transactions, 'all');
+    } finally {
+      loader.hide();
+    }
+  }
+
+  moreCharts(balance, transactions) {
+    this.items.classList.add('__charts');
+    this.firstChart = el('.account__item');
+    this.secondChart = el('.account__item');
+
+    this.firstTitle = el('.account__title', 'Динамика баланса');
+    this.secondTitle = el('.account__title', 'Соотношение входящих исходящих транзакций');
+
+    this.firstChartBody = el('.chart__body');
+    this.firstChartCanvas = el('canvas.#chart-12');
+
+    this.firstChartBody.append(this.firstChartCanvas);
+
+    setChildren(this.firstChart, [ this.firstTitle, this.firstChartBody ]);
+
+    let balances = getBalances(this.data.payload.account, balance, transactions, 12);
+
+    createChart(this.firstChartCanvas, balances, true);
+
+    this.secondChartBody = el('.chart__body');
+    this.secondChartCanvas = el('canvas.#chart-ratio');
+
+    setChildren(this.secondChart, [ this.secondTitle, this.secondChartBody ]);
+
+    // let ratio = getRatio()
+
+    setChildren(this.items, [ this.firstChart, this.secondChart ]);
+  }
+}
+
+async function transferFunds(from) {
+  try {
+    let to = document.getElementById('transfer-to').value;
+    let amount = document.getElementById('transfer-amount').value;
+
+    let result = await bankApi.transferFunds(from, to, amount, token);
+
+    if (result.payload !== null) {
+      let savedAccounts = JSON.parse(localStorage.getItem('transferStory')) || [];
+
+      savedAccounts.push(to);
+      console.log(savedAccounts)
+      localStorage.setItem('transferStory', JSON.stringify(savedAccounts));
+
+      document.getElementById('transfer-to').value = '';
+      document.getElementById('transfer-amount').value = '';
+      notice.show('Перевод прошёл успешно', 'success');
+    } else {
+      throw result.error;
+    }
+  } catch(err) {
+    notice.show(err, 'error');
   }
 }
 
@@ -733,38 +881,37 @@ function getBalances(account, balance, transactions, type) {
   let currentBalance = balance;
   let currentMonth = '';
 
-  if (type === 6) {
-    if (transactions.length) {
-      for (let i = 0; i < transactions.length; i++) {
-        let date = new Date(Date.parse(transactions[i].date));
-        let month = date.toLocaleString('default', { month: 'short' });
+  if (transactions.length) {
+    for (let i = 0; i < transactions.length; i++) {
+      let date = new Date(Date.parse(transactions[i].date));
+      let month = date.toLocaleString('default', { month: 'short' });
 
-        if (month !== currentMonth) {
-          let object = {
-            balance: currentBalance,
-            month: month
-          };
-          balances.push(object);
-
-          if (balances.length === 6) {
-            return balances;
-          }
-
-          currentMonth = month;
-        }
-
-        if (transactions[i].to === account) {
-          currentBalance = currentBalance + transactions[i].amount;
-        } else {
-          currentBalance = currentBalance - transactions[i].amount;
-        }
+      if (transactions[i].to === account) {
+        currentBalance = currentBalance + transactions[i].amount;
+      } else {
+        currentBalance = currentBalance - transactions[i].amount;
       }
-    } else {
-      balances = [ 0, 0, 0, 0, 0, 0 ];
-    }
-  }
 
-  // return balances;
+      if (month !== currentMonth || i === transactions.length - 1) {
+        let object = {
+          balance: currentBalance,
+          month: month
+        };
+        balances.push(object);
+
+        if (balances.length < type && i === transactions.length - 1) {
+          return balances.reverse();
+        } else if (balances.length === type) {
+          return balances.reverse();
+        }
+
+        currentMonth = month;
+      }
+    }
+  } else {
+    balances = [ 0, 0, 0, 0, 0, 0 ];
+    return balances;
+  }
 }
 
 class Select {

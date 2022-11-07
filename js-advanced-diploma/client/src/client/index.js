@@ -4,7 +4,7 @@ import Navigo from 'navigo';
 import createHeader from './header.js';
 import { Loader } from './loader.js';
 import createContent, { initMap } from './content.js';
-import './styles.scss';
+import './css/styles.scss';
 
 const router = new Navigo('/');
 
