@@ -36,8 +36,13 @@ async function createApp(address) {
 }
 
 router.on('/', () => {
-  localStorage.removeItem('token');
-  createApp('entry');
+  let check = localStorage.getItem('authorized') || 'false';
+
+  if (check === 'true') {
+    window.location.href = '/accounts';
+  } else {
+    createApp('entry');
+  }
 });
 
 router.on('/accounts', () => {

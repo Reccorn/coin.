@@ -61,6 +61,7 @@ function createForm() {
 
     if (result.payload !== null) {
       localStorage.setItem('token', result.payload.token);
+      localStorage.setItem('authorized', 'true');
       window.location = '/accounts';
     } else {
       notice.show(result.error, 'error');
@@ -626,6 +627,9 @@ class Account {
     this.head = el('.account__head');
     this.items = el('.account__items');
     this.story = el('.account__story');
+    this.upBtn;
+    this.scrollPos;
+    this.counter = 1;
 
     this.build();
   }
@@ -633,6 +637,10 @@ class Account {
   async build() {
     let loader = new Loader();
     loader.build();
+
+    this.upBtn = el('button.btn.account__up');
+    this.upBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M3.83 5L7.41 1.41L6 0L0 6L6 12L7.41 10.59L3.83 7L16 7V5L3.83 5Z" fill="white"/></svg>Наверх';
+
     try {
       this.data = await this.getData();
 
@@ -656,6 +664,8 @@ class Account {
       console.log(err)
     } finally {
       loader.hide();
+
+      document.body.append(this.upBtn);
     }
   }
 
@@ -735,13 +745,13 @@ class Account {
 
   storyContent(transactions, type) {
     if (transactions.length) {
-      let pagination = false;
+      let scrolling = false;
       if (transactions.length < type) {
         type = transactions.length;
       } else if (type === 'all') {
         type = 25;
         if (transactions.length > type) {
-          pagination = true;
+          scrolling = true;
         }
       }
 
@@ -757,7 +767,28 @@ class Account {
         el('.account__story_item', 'Дата')
       ]);
 
-      for (let i = 0; i < type; i++) {
+      createItems(this.storyList, this.data.payload.account, 0);
+
+      if (scrolling) {
+        window.addEventListener('scroll', () => {
+          if (window.scrollY + window.innerHeight === document.body.scrollHeight) {
+            let nextCounter = 25 * this.counter;
+            type = type + 25;
+            createItems(this.storyList, this.data.payload.account, nextCounter);
+            this.counter++;
+          }
+        });
+      }
+
+      setChildren(this.block, [ this.storyTitle, this.storyHead, this.storyList ]);
+
+      this.story.append(this.block);
+      this.scrollPos = document.body.scrollHeight;
+      this.scrollTop(scrolling);
+    }
+
+    function createItems(list, account, counter) {
+      for (let i = counter; i < type; i++) {
         let item = el('.account__story_list_item');
         let date = new Date(transactions[i].date);
         let month = date.getMonth() + 1;
@@ -773,7 +804,7 @@ class Account {
         let amountItem = el('.account__story_item');
         let amount;
 
-        if (transactions[i].to === this.data.payload.account) {
+        if (transactions[i].to === account) {
           amount = '+ ' + transactions[i].amount + ' ₽';
           amountItem.classList.add('__pos');
         } else {
@@ -790,16 +821,8 @@ class Account {
           el('.account__story_item', `${day}.${month}.${date.getFullYear()}`)
         ]);
 
-        this.storyList.append(item);
+        list.append(item);
       }
-
-      setChildren(this.block, [ this.storyTitle, this.storyHead, this.storyList ]);
-
-      if (pagination) {
-        let pages = transactions.length/25;
-      }
-
-      this.story.append(this.block);
     }
   }
 
@@ -848,6 +871,22 @@ class Account {
     // let ratio = getRatio()
 
     setChildren(this.items, [ this.firstChart, this.secondChart ]);
+  }
+
+  scrollTop(scrolling) {
+    if (scrolling) {
+      window.addEventListener('scroll', () => {
+        if (window.scrollY + window.innerHeight >= this.scrollPos) {
+          this.upBtn.classList.add('__show');
+
+          this.upBtn.addEventListener('click', () => {
+            window.scrollTo({top: 0, behavior: 'smooth'});
+          });
+        } else {
+          this.upBtn.classList.remove('__show');
+        }
+      });
+    }
   }
 }
 

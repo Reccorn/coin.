@@ -7,8 +7,17 @@ const router = new Navigo('/');
 function createNavLink(href, name) {
   const navItem = el('li.header__nav-item');
   const link = el('a.btn.btn__white.header__nav-link', name, {
-    href: href
+    'href': href
   });
+
+  if (name === 'Выйти') {
+    link.classList.add('exit__btn');
+
+    link.addEventListener('click', () => {
+      localStorage.setItem('authorized', 'false');
+      localStorage.removeItem('token');
+    });
+  }
 
   if (window.location.pathname.split('/').pop() === href.replace('/', '')) {
     link.classList.add('__active');
@@ -33,7 +42,7 @@ export default function createHeader(empty) {
       createNavLink('/atm', 'Банкоматы'),
       createNavLink('/accounts', 'Счета'),
       createNavLink('/currency', 'Валюта'),
-      createNavLink('/', 'Выйти'),
+      createNavLink('/', 'Выйти')
     ]);
 
     document.querySelectorAll('.header__nav-link').forEach(link => {
