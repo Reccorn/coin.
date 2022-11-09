@@ -1,9 +1,10 @@
 /* eslint-disable no-undef, no-unused-vars */
 import { el, setChildren } from 'redom';
 import Navigo from 'navigo';
-import createHeader from './header.js';
-import { Loader } from './loader.js';
-import createContent, { initMap } from './content.js';
+import createHeader from './modules/header.js';
+import { Loader } from './modules/loader.js';
+import createContent from './modules/content.js';
+import { initMap } from './modules/map.js'
 import './css/styles.scss';
 
 const router = new Navigo('/');
