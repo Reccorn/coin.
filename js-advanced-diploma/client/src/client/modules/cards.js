@@ -1,8 +1,11 @@
 /* eslint-disable no-unused-vars, no-undef */
 import { el, setChildren } from 'redom';
+import Navigo from 'navigo';
 import { bankApi } from './api.js';
 import { Account } from './account.js';
 import { getNotice } from './notice.js';
+
+const router = new Navigo('/');
 
 let token = localStorage.getItem('token');
 let sortedAccounts = [];
@@ -101,33 +104,8 @@ export class Card {
   }
 }
 
-function detailAccount(id) {
-  const head = document.querySelector('.content__head');
-  head.classList.add('__detail');
-  head.querySelector('h2').innerText = 'Просмотр счёта';
-
-  const backBtn = head.querySelector('.btn');
-  backBtn.classList.remove('create__btn');
-  backBtn.classList.add('back__btn');
-  backBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M3.83 5L7.41 1.41L6 0L0 6L6 12L7.41 10.59L3.83 7L16 7V5L3.83 5Z" fill="white"/></svg>Вернуться назад';
-
-  const main = document.querySelector('.content__main');
-  const list = main.querySelector('.accounts__list');
-  if (list !== null) {
-    list.remove();
-  }
-
-  backBtn.addEventListener('click', () => {
-    if (backBtn.classList.contains('to__account')) {
-      backBtn.classList.remove('to__account');
-      main.innerHTML = '';
-      detailAccount(id);
-    } else {
-      window.location.reload();
-    }
-  });
-
-  let detailContent = el('.account__content');
-  let create = new Account(id, detailContent);
-  main.append(detailContent);
+export function detailAccount(id) {
+  window.location.href = '/accounts/' + id;
 }
+
+router.resolve();

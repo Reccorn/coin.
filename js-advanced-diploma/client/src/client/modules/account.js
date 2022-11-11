@@ -223,6 +223,7 @@ export class Account {
     this.scrollPos;
     this.counter = 1;
     this.notice = getNotice();
+    this.unwrapped = false;
 
     this.build();
   }
@@ -245,7 +246,10 @@ export class Account {
         this.storyContent(this.data.payload.transactions, 10);
 
         this.story.addEventListener('click', () => {
-          this.showMore();
+          if (!this.unwrapped) {
+            this.showMore();
+            this.unwrapped = true;
+          }
         });
 
         setChildren(this.content, [ this.head, this.items, this.story ]);
@@ -334,6 +338,7 @@ export class Account {
 
       this.chart.addEventListener('click', () => {
         this.showMore();
+        this.unwrapped = true;
       });
     } else {
       this.chart = '';

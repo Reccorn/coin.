@@ -40,14 +40,15 @@ router.on('/', () => {
   let check = localStorage.getItem('authorized') || 'false';
 
   if (check === 'true') {
-    window.location.href = '/accounts';
+    router.navigate('/accounts');
   } else {
     createApp('entry');
   }
 });
 
-router.on('/accounts', () => {
-  createApp('accounts');
+router.on('/accounts/*', () => {
+  const path = window.location.pathname.split("/").pop();
+  createApp(path);
 });
 
 router.on('/currency', () => {

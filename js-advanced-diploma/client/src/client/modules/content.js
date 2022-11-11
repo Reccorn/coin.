@@ -3,7 +3,8 @@ import { el, setChildren } from 'redom';
 import Navigo from 'navigo';
 import { getNotice } from './notice.js'
 import { bankApi } from './api.js';
-import { Card } from './cards.js';
+import { Card, detailAccount } from './cards.js';
+import { Account } from './account.js';
 import { createCurrencies } from './currencies.js';
 import { Select } from './select.js';
 
@@ -146,6 +147,21 @@ function createContentHead(address) {
     title.textContent = 'Валютный обмен';
   } else if (address === 'atm') {
     title.textContent = 'Карта банкоматов';
+  } else {
+    head.classList.add('__detail');
+    title.textContent = 'Просмотр счёта';
+    btn = el('button.btn.back__btn');
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M3.83 5L7.41 1.41L6 0L0 6L6 12L7.41 10.59L3.83 7L16 7V5L3.83 5Z" fill="white"/></svg>Вернуться назад';
+
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('to__account')) {
+          btn.classList.remove('to__account');
+          document.querySelector('.content__main').innerHTML = '';
+          detailAccount(address);
+        } else {
+          window.location.href = '/accounts';
+        }
+    });
   }
 
   setChildren(head, [title, selectBox, btn]);
@@ -170,6 +186,9 @@ async function createContentMain(address) {
   } else if (address === 'currency') {
     const currencies = await createCurrencies();
     setChildren(main, currencies);
+  } else {
+    const openAccount = new Account(address, main);
+    setChildren(main, openAccount);
   }
 
   return main;
